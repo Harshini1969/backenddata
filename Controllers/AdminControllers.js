@@ -3,75 +3,59 @@ const Trainer = require("../Model/TrainerModel");
 const Student = require("../Model/StudentModel");
 const jwt = require("jsonwebtoken");
 
-/* LOGIN TO ANYONE */
+/* ================= LOGIN ================= */
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     let user =
-      await Admin.findOne({ email, password }) ||
-      await Trainer.findOne({ email, password }) ||
-      await Student.findOne({ email, password });
+      (await Admin.findOne({ email })) ||
+      (await Trainer.findOne({ email })) ||
+      (await Student.findOne({ email }));
 
-    if (!user) {
-      return res.send("Invalid Credentials");
+    if (!user || user.password !== password) {
+      return res.status(401).json({ message: "Invalid Credentials" });
     }
 
-    /* ACCESS TOKEN */
     const accessToken = jwt.sign(
       { id: user._id, name: user.name, role: user.role },
       "Harshini@123",
-      { expiresIn: "1m" }
+      { expiresIn: "5m" }
     );
 
-    /* REFRESH TOKEN */
-    const refreshToken = jwt.sign(
-      { id: user._id },
-      "Harshini@123",
-      { expiresIn: "10d" }
-    );
-
-    /* STORE REFRESH TOKEN IN COOKIE */
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false,
+    res.status(200).json({
+      message: "Login Successful",
+      accessToken,
+      user: { name: user.name, role: user.role },
     });
-
-    /* SAVE REFRESH TOKEN IN DB */
-    user.refreshToken = refreshToken;
-    await user.save();
-
-    res.json({ accessToken });
-
   } catch (error) {
-    res.status(500).send("Login Failed");
+    res.status(500).json({ message: "Login Failed" });
   }
 };
 
-/* ================= REFRESH TOKEN ================= */
-exports.refreshToken = async (req, res) => {
-  const token = req.cookies.refreshToken;
-  if (!token) return res.sendStatus(401);
-
-  let user =
-    await Admin.findOne({ refreshToken: token }) ||
-    await Trainer.findOne({ refreshToken: token }) ||
-    await Student.findOne({ refreshToken: token });
-
-  if (!user) return res.sendStatus(403);
-
+/* ================= ADMIN REGISTER ================= */
+exports.adminRegister = async (req, res) => {
   try {
-    jwt.verify(token, "Harshini@123");
+    if (!req.headers.authorization)
+      return res.status(401).send("No Token Provided");
 
-    const newAccessToken = jwt.sign(
-      { id: user._id, name: user.name, role: user.role },
-      "Harshini@123",
-      { expiresIn: "1m" }
-    );
+    const token = req.headers.authorization.split(" ")[1];
+    const decoded = jwt.verify(token, "Harshini@123");
 
-    res.json({ accessToken: newAccessToken });
-  } catch (error) {
-    res.sendStatus(403);
+    if (decoded.role !== "admin")
+      return res.status(403).send("Access Denied");
+
+    const { name, email, password, role } = req.body;
+
+    if (role === "student")
+      await Student.create({ name, email, password, role: "student" });
+    else if (role === "trainer")
+      await Trainer.create({ name, email, password, role: "trainer" });
+    else
+      return res.status(400).send("Invalid Role");
+
+    res.send("User Registered Successfully");
+  } catch {
+    res.status(401).send("Invalid or Expired Token");
   }
 };

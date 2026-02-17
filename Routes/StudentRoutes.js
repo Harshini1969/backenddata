@@ -1,23 +1,27 @@
 const express = require("express");
 const router = express.Router();
-const upload = require("../config/Multer");
-
+const upload = require("../config/Multer")
 const {
   registerStudent,
-  sendMail,
+  login,
+  refreshToken,
   forgetPassword,
   resetPassword,
-  studentHome,   
+  studentHome,
 } = require("../Controllers/StudentControllers");
 
-router.post("/register", registerStudent);
-router.post("/send-mail", sendMail);
-router.post("/forget-password", forgetPassword);
+// Student routes
+router.post("/register", registerStudent); 
+router.post("/login", login);
+router.post("/refresh-token", refreshToken);
+router.post("/forget-password", forgetPassword); 
 router.post("/reset-password/:token", resetPassword);
-router.get("/home", studentHome);
+router.get("/dashboard", studentHome);
 
-/* Upload Route */
+module.exports = router;
 
+
+// Upload Route
 router.post(
   "/upload-photo",
   upload.single("uploadphoto"),
