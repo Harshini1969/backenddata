@@ -8,7 +8,7 @@ const {
   forgetPassword,
   resetPassword,
   studentHome,
-  
+  uploadPhoto,   
 } = require("../Controllers/StudentControllers");
 
 router.post("/register", registerStudent);
@@ -18,13 +18,20 @@ router.post("/reset-password/:token", resetPassword);
 router.get("/home", studentHome);
 
 /* Upload Route */
+
 router.post(
   "/upload-photo",
-  upload.single("photo"),
+  upload.single("uploadphoto"),
   (req, res) => {
-    res.json({ message: "Photo uploaded successfully" });
+    console.log(req.file);
+    res.json({
+      message: "Photo uploaded successfully",
+    });
   }
 );
+
+
+
 
 
 module.exports = router;
