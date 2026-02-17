@@ -1,0 +1,101 @@
+const Student = require("../Model/StudentModel");
+const jwt = require("jsonwebtoken");
+const transporter = require("../config/Mailer");
+
+/* ================= Register ================= */
+exports.registerStudent = async (req, res) => {
+  try {
+    const token = req.headers.authorization.split(" ")[1];
+    const decoded = jwt.verify(token, "Harshini@123");
+
+    if (decoded.role !== "admin") {
+      return res.status(403).send("Access Denied");
+    }
+
+    const studentData = {
+      ...req.body,
+      role: "student",
+    };
+
+    await Student.create(studentData);
+    res.send("Student Registered Successfully");
+  } catch (error) {
+    res.status(401).send("Invalid Token");
+  }
+};
+
+
+/* ================= SEND MAIL ================= */
+exports.sendMail = async (req, res) => {
+  try {
+    await transporter.sendMail({
+      from: "nvs061982@gmail.com",
+      to: "harshinin1969@gmail.com",
+      subject: "Nodemailer Practice",
+      text: "Hello from Student Section",
+    });
+
+    res.send("Mail sent successfully");
+  } catch (error) {
+    res.status(500).send("Mail sending failed");
+  }
+};
+
+exports.forgetPassword = async (req, res) => {
+  const student = await Student.findOne({ email: req.body.email });
+
+  if (!student) return res.json({ message: "Student not found" });
+
+  const token = jwt.sign(
+    { id: student._id },
+    "Harshini@123",
+    { expiresIn: "10m" }
+  );
+
+  const link = `http://localhost:3000/reset/student/${token}`;
+
+  await transporter.sendMail({
+    to: student.email,
+    subject: "Reset Password",
+    text: link
+  });
+
+  res.json({ message: "Reset link sent" });
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const decoded = jwt.verify(req.params.token, "Harshini@123");
+    const student = await Student.findById(decoded.id);
+
+    student.password = req.body.password;
+    await student.save();
+
+    res.json({ message: "Password updated" });
+  } catch {
+    res.status(400).json({ message: "Invalid token" });
+  }
+};
+
+
+/* ================= Upload Photo ================= */
+
+exports.uploadPhoto = (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    res.status(200).json({
+      message: "Photo uploaded successfully",
+      imageUrl: `http://localhost:5000/uploads/${req.file.filename}`,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Upload failed" });
+  }
+};
+
+
+exports.studentHome = (req, res) => {
+  res.send("Student Dashboard");
+};
