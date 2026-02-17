@@ -7,8 +7,7 @@ const {
   sendMail,
   forgetPassword,
   resetPassword,
-  studentHome,
-  uploadPhoto,   
+  studentHome,   
 } = require("../Controllers/StudentControllers");
 
 router.post("/register", registerStudent);
@@ -29,9 +28,5 @@ router.post(
     });
   }
 );
-
-
-
-
 
 module.exports = router;

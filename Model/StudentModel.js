@@ -5,7 +5,9 @@ let StudentSchema = mongoose.Schema({
     name: String,
     email:String,
     password:String,
-    role:String
+    role:String,
+    refreshToken: String
+
 })
 
 // model --> student (collection)

@@ -24,6 +24,64 @@ exports.registerStudent = async (req, res) => {
   }
 };
 
+/* ================= LOGIN STUDENT ================= */
+exports.login = async (req, res) => {
+  try {
+    const student = await Student.findOne(req.body);
+
+    if (!student) {
+      return res.send("Invalid Credentials");
+    }
+
+    const accessToken = jwt.sign(
+      { id: student._id, role: "student" },
+      "Harshini@123",
+      { expiresIn: "1m" }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: student._id },
+      "Harshini@123",
+      { expiresIn: "10d" }
+    );
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+    });
+
+    student.refreshToken = refreshToken;
+    await student.save();
+
+    res.json({ accessToken });
+  } catch (error) {
+    res.status(500).send("Login Failed");
+  }
+};
+
+/* ================= REFRESH TOKEN ================= */
+exports.refreshToken = async (req, res) => {
+  const token = req.cookies.refreshToken;
+  if (!token) return res.sendStatus(401);
+
+  const student = await Student.findOne({ refreshToken: token });
+  if (!student) return res.sendStatus(403);
+
+  try {
+    jwt.verify(token, "Harshini@123");
+
+    const newAccessToken = jwt.sign(
+      { id: student._id, role: "student" },
+      "Harshini@123",
+      { expiresIn: "1m" }
+    );
+
+    res.json({ accessToken: newAccessToken });
+  } catch (error) {
+    res.sendStatus(403);
+  }
+};
 
 /* ================= SEND MAIL ================= */
 exports.sendMail = async (req, res) => {
@@ -57,7 +115,7 @@ exports.forgetPassword = async (req, res) => {
   await transporter.sendMail({
     to: student.email,
     subject: "Reset Password",
-    text: link
+    text: link,
   });
 
   res.json({ message: "Reset link sent" });
@@ -77,9 +135,7 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-
 /* ================= Upload Photo ================= */
-
 exports.uploadPhoto = (req, res) => {
   try {
     if (!req.file) {
@@ -94,7 +150,6 @@ exports.uploadPhoto = (req, res) => {
     res.status(500).json({ message: "Upload failed" });
   }
 };
-
 
 exports.studentHome = (req, res) => {
   res.send("Student Dashboard");

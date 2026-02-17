@@ -22,6 +22,65 @@ exports.registerTrainer = async (req, res) => {
   }
 };
 
+/* ================= LOGIN TRAINER ================= */
+exports.login = async (req, res) => {
+  try {
+    const trainer = await Trainer.findOne(req.body);
+
+    if (!trainer) {
+      return res.send("Invalid Credentials");
+    }
+
+    const accessToken = jwt.sign(
+      { id: trainer._id, role: "trainer" },
+      "Harshini@123",
+      { expiresIn: "1m" }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: trainer._id },
+      "Harshini@123",
+      { expiresIn: "10d" }
+    );
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+    });
+
+    trainer.refreshToken = refreshToken;
+    await trainer.save();
+
+    res.json({ accessToken });
+  } catch (err) {
+    res.status(500).send("Login Failed");
+  }
+};
+
+/* ================= REFRESH TOKEN ================= */
+exports.refreshToken = async (req, res) => {
+  const token = req.cookies.refreshToken;
+  if (!token) return res.sendStatus(401);
+
+  const trainer = await Trainer.findOne({ refreshToken: token });
+  if (!trainer) return res.sendStatus(403);
+
+  try {
+    jwt.verify(token, "Harshini@123");
+
+    const newAccessToken = jwt.sign(
+      { id: trainer._id, role: "trainer" },
+      "Harshini@123",
+      { expiresIn: "1m" }
+    );
+
+    res.json({ accessToken: newAccessToken });
+  } catch (err) {
+    res.sendStatus(403);
+  }
+};
+
 /* ================= SEND MAIL ================= */
 exports.sendMail = async (req, res) => {
   await transporter.sendMail({
