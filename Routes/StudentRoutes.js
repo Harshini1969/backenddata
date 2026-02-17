@@ -8,7 +8,7 @@ const {
   forgetPassword,
   resetPassword,
   studentHome,
-  uploadPhoto,   
+  
 } = require("../Controllers/StudentControllers");
 
 router.post("/register", registerStudent);
