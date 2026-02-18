@@ -1,39 +1,33 @@
 const Trainer = require("../Model/TrainerModel");
 const jwt = require("jsonwebtoken");
-const transporter = require("../config/Mailer");
+const transporter = require("../config/Mailer"); 
+const JWT_SECRET = process.env.JWT_SECRET ;
 
-/* ================= REGISTER ================= */
+/*  REGISTER  */
 exports.registerTrainer = async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).send("No Token Provided");
-
-    const decoded = jwt.verify(token, "Harshini@123");
-    if (decoded.role !== "admin") return res.status(403).send("Access Denied");
-
     const data = { ...req.body, role: "trainer" };
     await Trainer.create(data);
     res.send("Trainer Registered Successfully");
   } catch (error) {
     console.error(error);
-    res.status(401).send("Invalid Token");
+    res.status(500).send("Registration failed");
   }
 };
 
-/* ================= LOGIN ================= */
+/*  LOGIN  */
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const trainer = await Trainer.findOne({ email });
 
-    if (!trainer || trainer.password !== password) {
+    if (!trainer || trainer.password !== password)
       return res.status(401).json({ message: "Invalid Credentials" });
-    }
 
     const accessToken = jwt.sign(
       { id: trainer._id, role: "trainer" },
-      "Harshini@123",
-      { expiresIn: "1h" } // longer expiry prevents frequent refresh
+      JWT_SECRET,
+      { expiresIn: "1h" }
     );
 
     res.json({ accessToken });
@@ -43,14 +37,13 @@ exports.login = async (req, res) => {
   }
 };
 
-
-/* ================= SEND MAIL ================= */
+/*  SEND MAIL  */
 exports.sendMail = async (req, res) => {
   try {
     const { email, subject, text } = req.body;
-
+    
     await transporter.sendMail({
-      from: "nvs061982@gmail.com",
+      from: process.env.EMAIL_USER,
       to: email,
       subject,
       text,
@@ -63,20 +56,25 @@ exports.sendMail = async (req, res) => {
   }
 };
 
-/* ================= FORGET PASSWORD ================= */
+/*  FORGET PASSWORD  */
 exports.forgetPassword = async (req, res) => {
   try {
     const trainer = await Trainer.findOne({ email: req.body.email });
     if (!trainer) return res.status(404).json({ message: "Trainer not found" });
 
-    const resetToken = jwt.sign({ id: trainer._id }, "Harshini@123", { expiresIn: "10m" });
-    const link = `http://localhost:3000/reset/trainer/${resetToken}`;
+    const resetToken = jwt.sign(
+      { id: trainer._id },
+      JWT_SECRET,
+      { expiresIn: "10m" }
+    );
 
-    transporter.sendMail({
-      from: "nvs061982@gmail.com",
+    const resetLink = `${process.env.FRONTEND_URL}/reset/trainer/${resetToken}`;
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
       to: trainer.email,
       subject: "Reset Password",
-      text: link,
+      text: resetLink,
     });
 
     res.json({ message: "Reset link sent" });
@@ -86,26 +84,25 @@ exports.forgetPassword = async (req, res) => {
   }
 };
 
-/* ================= RESET PASSWORD ================= */
+/*  RESET PASSWORD */
 exports.resetPassword = async (req, res) => {
   try {
-    const decoded = jwt.verify(req.params.token, "Harshini@123");
+    const decoded = jwt.verify(req.params.token, JWT_SECRET);
     const trainer = await Trainer.findById(decoded.id);
+
     if (!trainer) return res.status(404).json({ message: "Trainer not found" });
 
     trainer.password = req.body.password;
     await trainer.save();
 
-    res.json({ message: "Password updated" });
+    res.json({ message: "Password updated successfully" });
   } catch (error) {
     console.error(error);
     res.status(400).json({ message: "Invalid token" });
   }
 };
 
-/* ================= DASHBOARD ================= */
+/* DASHBOARD  */
 exports.trainerHome = (req, res) => {
-  // Dashboard responds quickly; you can add data fetching here if needed
   res.json({ message: "Trainer Dashboard" });
 };
-

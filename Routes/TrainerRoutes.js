@@ -1,11 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const trainerController = require("../Controllers/TrainerControllers");
+const { verifyToken, isAdmin, isTrainer } = require("../Middleware/Auth");
 
-router.post("/sendMail", trainerController.sendMail);
+router.post("/register", verifyToken, isAdmin, trainerController.registerTrainer);
+router.post("/login", trainerController.login);
+router.get("/home", verifyToken, isTrainer, trainerController.trainerHome);
+router.post("/sendMail", verifyToken, isTrainer, trainerController.sendMail);
 router.post("/forget-password", trainerController.forgetPassword);
-router.post("/resetPass/:token", trainerController.resetPassword);
-router.post("/register", trainerController.registerTrainer);
-router.get("/home", trainerController.trainerHome);
+router.post("/reset-password/:token", trainerController.resetPassword);
 
 module.exports = router;

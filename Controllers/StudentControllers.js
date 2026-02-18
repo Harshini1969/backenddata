@@ -1,26 +1,21 @@
 const Student = require("../Model/StudentModel");
 const jwt = require("jsonwebtoken");
-const transporter = require("../config/Mailer");
+const transporter = require("../config/Mailer"); 
+const JWT_SECRET = process.env.JWT_SECRET ;
 
-/* ================= REGISTER ================= */
+/*  REGISTER  */
 exports.registerStudent = async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1]; 
-    if (!token) return res.status(401).send("No Token Provided");
-
-    const decoded = jwt.verify(token, "Harshini@123");
-    if (decoded.role !== "admin") return res.status(403).send("Access Denied");
-
     const studentData = { ...req.body, role: "student" };
     await Student.create(studentData);
     res.send("Student Registered Successfully");
   } catch (error) {
     console.error("Register error:", error);
-    res.status(401).send("Invalid Token");
+    res.status(500).send("Registration failed");
   }
 };
 
-/* ================= LOGIN ================= */
+/* LOGIN  */
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -29,13 +24,26 @@ exports.login = async (req, res) => {
     if (!student || student.password !== password)
       return res.status(401).send("Invalid Credentials");
 
-    const accessToken = jwt.sign({ id: student._id, role: "student" }, "Harshini@123", { expiresIn: "1h" });
-    const refreshToken = jwt.sign({ id: student._id }, "Harshini@123", { expiresIn: "10d" });
+    const accessToken = jwt.sign(
+      { id: student._id, role: "student" },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
-    res.cookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "lax", secure: false });
+    const refreshToken = jwt.sign(
+      { id: student._id },
+      JWT_SECRET,
+      { expiresIn: "10d" }
+    );
 
     student.refreshToken = refreshToken;
     await student.save();
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+    });
 
     res.json({ accessToken });
   } catch (error) {
@@ -44,7 +52,7 @@ exports.login = async (req, res) => {
   }
 };
 
-/* ================= REFRESH TOKEN ================= */
+/* REFRESH TOKEN  */
 exports.refreshToken = async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
@@ -53,9 +61,14 @@ exports.refreshToken = async (req, res) => {
     const student = await Student.findOne({ refreshToken: token });
     if (!student) return res.sendStatus(403);
 
-    jwt.verify(token, "Harshini@123");
+    jwt.verify(token, JWT_SECRET);
 
-    const newAccessToken = jwt.sign({ id: student._id, role: "student" }, "Harshini@123", { expiresIn: "1h" });
+    const newAccessToken = jwt.sign(
+      { id: student._id, role: "student" },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
     res.json({ accessToken: newAccessToken });
   } catch (error) {
     console.error("Refresh token error:", error);
@@ -63,97 +76,57 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
-/* ================= SEND MAIL ================= */
-exports.sendMail = async (req, res) => {
-  try {
-    await transporter.sendMail({
-      from: "nvs061982@gmail.com",
-      to: "harshinin1969@gmail.com",
-      subject: "Nodemailer Practice",
-      text: "Hello from Student Section"
-    });
-    res.send("Mail sent!");
-  } catch (error) {
-    console.error("Send mail error:", error);
-    res.status(500).send("Mail sending failed");
-  }
-};
-
-/* ================= FORGOT PASSWORD ================= */
+/* FORGET PASSWORD */
 exports.forgetPassword = async (req, res) => {
   try {
-    const student = await Student.findOne({
-      email: req.body.email
-    });
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email is required" });
 
-    if (!student) {
-      return res.status(404).json({
-        message: "Student doesn't exist!"
-      });
-    }
+    const student = await Student.findOne({ email });
+    if (!student) return res.status(404).json({ message: "Student not found" });
 
     const resetToken = jwt.sign(
       { id: student._id },
-      "Harshini@123",
+      JWT_SECRET,
       { expiresIn: "10m" }
     );
 
-    const link = `http://localhost:3000/reset/student/${resetToken}`;
+    const resetLink = `${process.env.FRONTEND_URL}/reset/student/${resetToken}`;
 
     await transporter.sendMail({
-      from: "nvs061982@gmail.com",
+      from: process.env.EMAIL_USER,
       to: student.email,
       subject: "Reset Password",
-      text: `Reset link: ${link}`
+      text: `Click here to reset your password: ${resetLink}`,
     });
 
-    res.json({
-      message: "Email sent successfully. Check your email."
-    });
-
+    res.json({ message: "Reset link sent successfully" });
   } catch (error) {
-    console.error("Forgot password error:", error);
-    res.status(500).json({
-      message: "Server error"
-    });
+    console.error("Forget password error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-
-/* ================= RESET PASSWORD ================= */
+/*  RESET PASSWORD  */
 exports.resetPassword = async (req, res) => {
   try {
-    const decoded = jwt.verify(req.params.token, "Harshini@123");
-
+    const decoded = jwt.verify(req.params.token, JWT_SECRET);
     const student = await Student.findById(decoded.id);
 
-    if (!student) {
-      return res.status(404).json({
-        message: "Student not found"
-      });
-    }
-
-    if (!req.body.password) {
-      return res.status(400).json({
-        message: "Password is required"
-      });
-    }
+    if (!student) return res.status(404).json({ message: "Student not found" });
+    if (!req.body.password)
+      return res.status(400).json({ message: "Password is required" });
 
     student.password = req.body.password;
     await student.save();
 
-    res.json({
-      message: "Password updated"
-    });
-
+    res.json({ message: "Password updated successfully" });
   } catch (error) {
-    res.status(400).json({
-      message: "Invalid or expired token"
-    });
+    res.status(400).json({ message: "Invalid or expired token" });
   }
 };
 
-/* ================= DASHBOARD ================= */
+/*  DASHBOARD  */
 exports.studentHome = async (req, res) => {
   res.json({ message: "Student Dashboard" });
 };

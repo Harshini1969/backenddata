@@ -21,10 +21,10 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 
-
-app.use("/uploads",
-   express.static("uploads")
-  );
+app.use(
+  "/uploads",
+  express.static("uploads")
+);
 
 app.use("/student", studentRoutes);
 app.use("/trainer", trainerRoutes);
@@ -35,5 +35,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(5000, () => {
-  console.log("Server running on port 5000");
+  console.log("Server running");
 });
