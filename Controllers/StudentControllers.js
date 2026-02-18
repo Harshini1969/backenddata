@@ -27,7 +27,7 @@ exports.login = async (req, res) => {
     const accessToken = jwt.sign(
       { id: student._id, role: "student" },
       JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "1d" }
     );
 
     const refreshToken = jwt.sign(
@@ -66,7 +66,7 @@ exports.refreshToken = async (req, res) => {
     const newAccessToken = jwt.sign(
       { id: student._id, role: "student" },
       JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "1d" }
     );
 
     res.json({ accessToken: newAccessToken });
@@ -88,7 +88,7 @@ exports.forgetPassword = async (req, res) => {
     const resetToken = jwt.sign(
       { id: student._id },
       JWT_SECRET,
-      { expiresIn: "10m" }
+      { expiresIn: "1d" }
     );
 
     const resetLink = `${process.env.FRONTEND_URL}/reset/student/${resetToken}`;
@@ -100,7 +100,9 @@ exports.forgetPassword = async (req, res) => {
       text: `Click here to reset your password: ${resetLink}`,
     });
 
-    res.json({ message: "Reset link sent successfully" });
+    res.json({ 
+      message: "Reset link sent successfully"
+     });
   } catch (error) {
     console.error("Forget password error:", error);
     res.status(500).json({ message: "Server error" });
@@ -113,16 +115,26 @@ exports.resetPassword = async (req, res) => {
     const decoded = jwt.verify(req.params.token, JWT_SECRET);
     const student = await Student.findById(decoded.id);
 
-    if (!student) return res.status(404).json({ message: "Student not found" });
+    if (!student)
+       return res.status(404).json({
+       message: "Student not found" 
+      });
+
     if (!req.body.password)
-      return res.status(400).json({ message: "Password is required" });
+      return res.status(400).json({ 
+    message: "Password is required" 
+  });
 
     student.password = req.body.password;
     await student.save();
 
-    res.json({ message: "Password updated successfully" });
+    res.json({
+       message: "Password updated successfully" 
+      });
   } catch (error) {
-    res.status(400).json({ message: "Invalid or expired token" });
+    res.status(400).json({ 
+      message: "Invalid or expired token" 
+    });
   }
 };
 

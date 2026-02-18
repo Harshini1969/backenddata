@@ -41,7 +41,7 @@ exports.login = async (req, res) => {
 exports.sendMail = async (req, res) => {
   try {
     const { email, subject, text } = req.body;
-    
+
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
@@ -60,7 +60,8 @@ exports.sendMail = async (req, res) => {
 exports.forgetPassword = async (req, res) => {
   try {
     const trainer = await Trainer.findOne({ email: req.body.email });
-    if (!trainer) return res.status(404).json({ message: "Trainer not found" });
+    if (!trainer)
+       return res.status(404).json({ message: "Trainer not found" });
 
     const resetToken = jwt.sign(
       { id: trainer._id },
