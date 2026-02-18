@@ -7,6 +7,7 @@ const connectDB = require("./config/db");
 const studentRoutes = require("./Routes/StudentRoutes");
 const trainerRoutes = require("./Routes/TrainerRoutes");
 const adminRoutes = require("./Routes/AdminRoutes");
+const uploadRoutes = require("./Routes/UploadRoutes");
 
 const app = express();
 connectDB();
@@ -29,6 +30,7 @@ app.use(
 app.use("/student", studentRoutes);
 app.use("/trainer", trainerRoutes);
 app.use("/admin", adminRoutes);
+app.use("/upload", uploadRoutes); 
 
 app.get("/", (req, res) => {
   res.send("Server is Running");
