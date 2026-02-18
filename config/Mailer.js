@@ -8,7 +8,7 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD,
   },
-  family: 4, 
+  family: 4, // force IPv4 (important for Render)
   tls: {
     rejectUnauthorized: false,
   },
