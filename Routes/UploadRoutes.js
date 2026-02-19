@@ -33,7 +33,10 @@ router.post(
 
       res.json({
         message: `${userRole} photo uploaded successfully`,
-        file: req.file,
+         file: {
+            filename: req.file.filename,
+            url: `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`,
+        },
       });
     } catch (error) {
       console.error("Upload error:", error);
