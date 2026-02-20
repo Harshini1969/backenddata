@@ -1,7 +1,6 @@
 const Student = require("../Model/StudentModel");
 const jwt = require("jsonwebtoken");
-const transporter = require("../config/Mailer"); 
-const JWT_SECRET = process.env.JWT_SECRET ;
+const JWT_SECRET = process.env.JWT_SECRET;
 
 /*  REGISTER  */
 exports.registerStudent = async (req, res) => {
@@ -15,7 +14,7 @@ exports.registerStudent = async (req, res) => {
   }
 };
 
-/* LOGIN  */
+/*  LOGIN  */
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -24,17 +23,8 @@ exports.login = async (req, res) => {
     if (!student || student.password !== password)
       return res.status(401).send("Invalid Credentials");
 
-    const accessToken = jwt.sign(
-      { id: student._id, role: "student" },
-      JWT_SECRET,
-      { expiresIn: "1d" }
-    );
-
-    const refreshToken = jwt.sign(
-      { id: student._id },
-      JWT_SECRET,
-      { expiresIn: "10d" }
-    );
+    const accessToken = jwt.sign({ id: student._id, role: "student" }, JWT_SECRET, { expiresIn: "1d" });
+    const refreshToken = jwt.sign({ id: student._id }, JWT_SECRET, { expiresIn: "10d" });
 
     student.refreshToken = refreshToken;
     await student.save();
@@ -52,7 +42,7 @@ exports.login = async (req, res) => {
   }
 };
 
-/* REFRESH TOKEN  */
+/*  REFRESH TOKEN  */
 exports.refreshToken = async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
@@ -62,13 +52,7 @@ exports.refreshToken = async (req, res) => {
     if (!student) return res.sendStatus(403);
 
     jwt.verify(token, JWT_SECRET);
-
-    const newAccessToken = jwt.sign(
-      { id: student._id, role: "student" },
-      JWT_SECRET,
-      { expiresIn: "1d" }
-    );
-
+    const newAccessToken = jwt.sign({ id: student._id, role: "student" }, JWT_SECRET, { expiresIn: "1d" });
     res.json({ accessToken: newAccessToken });
   } catch (error) {
     console.error("Refresh token error:", error);
@@ -76,65 +60,43 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
-/* FORGET PASSWORD */
+/*  FORGET PASSWORD */
 exports.forgetPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: "Email is required" });
-
     const student = await Student.findOne({ email });
     if (!student) return res.status(404).json({ message: "Student not found" });
 
-    const resetToken = jwt.sign(
-      { id: student._id },
-      JWT_SECRET,
-      { expiresIn: "1d" }
-    );
-
-    const resetLink = `${process.env.FRONTEND_URL}/reset/student/${resetToken}`;
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: student.email,
-      subject: "Reset Password",
-      text: `Click here to reset your password: ${resetLink}`,
-    });
-
-    res.json({ 
-      message: "Reset link sent successfully"
-     });
+    const resetToken = jwt.sign({ id: student._id }, JWT_SECRET, { expiresIn: "1d" });
+    res.json({ message: "Reset token generated successfully", resetToken });
   } catch (error) {
     console.error("Forget password error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-/*  RESET PASSWORD  */
+/*  RESET PASSWORD */
 exports.resetPassword = async (req, res) => {
   try {
-    const decoded = jwt.verify(req.params.token, JWT_SECRET);
+    const { token } = req.params;
+    const { newPassword, confirmPassword } = req.body;
+
+    if (!newPassword || !confirmPassword)
+      return res.status(400).json({ message: "All fields are required" });
+
+    if (newPassword !== confirmPassword)
+      return res.status(400).json({ message: "Passwords do not match" });
+
+    const decoded = jwt.verify(token, JWT_SECRET);
     const student = await Student.findById(decoded.id);
+    if (!student) return res.status(404).json({ message: "Student not found" });
 
-    if (!student)
-       return res.status(404).json({
-       message: "Student not found" 
-      });
-
-    if (!req.body.password)
-      return res.status(400).json({ 
-    message: "Password is required" 
-  });
-
-    student.password = req.body.password;
+    student.password = newPassword;
     await student.save();
 
-    res.json({
-       message: "Password updated successfully" 
-      });
+    res.json({ message: "Password updated successfully" });
   } catch (error) {
-    res.status(400).json({ 
-      message: "Invalid or expired token" 
-    });
+    res.status(400).json({ message: "Invalid or expired token" });
   }
 };
 
