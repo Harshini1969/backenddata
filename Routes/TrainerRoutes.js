@@ -6,7 +6,8 @@ const { verifyToken, isAdmin, isTrainer } = require("../Middleware/Auth");
 router.post("/register", verifyToken, isAdmin, trainerController.registerTrainer);
 router.post("/login", trainerController.login);
 router.get("/home", verifyToken, isTrainer, trainerController.trainerHome);
-router.post("/sendMail", verifyToken, isTrainer, trainerController.sendMail);
+
+// Forget / Reset password
 router.post("/forget-password", trainerController.forgetPassword);
 router.post("/reset-password/:token", trainerController.resetPassword);
 

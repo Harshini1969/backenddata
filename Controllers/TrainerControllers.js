@@ -1,9 +1,8 @@
 const Trainer = require("../Model/TrainerModel");
 const jwt = require("jsonwebtoken");
-const transporter = require("../config/Mailer"); 
-const JWT_SECRET = process.env.JWT_SECRET ;
+const JWT_SECRET = process.env.JWT_SECRET;
 
-/*  REGISTER  */
+/* REGISTER */
 exports.registerTrainer = async (req, res) => {
   try {
     const data = { ...req.body, role: "trainer" };
@@ -15,7 +14,7 @@ exports.registerTrainer = async (req, res) => {
   }
 };
 
-/*  LOGIN  */
+/* LOGIN */
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -27,41 +26,25 @@ exports.login = async (req, res) => {
     const accessToken = jwt.sign(
       { id: trainer._id, role: "trainer" },
       JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "1d" }
     );
 
     res.json({ accessToken });
   } catch (error) {
     console.error(error);
-    res.status(500).send("Login Failed");
+    res.status(500).json({ message: "Login Failed" });
   }
 };
 
-/*  SEND MAIL  */
-exports.sendMail = async (req, res) => {
-  try {
-    const { email, subject, text } = req.body;
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject,
-      text,
-    });
-
-    res.json({ message: "Email sent successfully" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Failed to send email" });
-  }
-};
-
-/*  FORGET PASSWORD  */
+/* FORGET PASSWORD (without mailer) */
 exports.forgetPassword = async (req, res) => {
   try {
+    if (!req.body.email)
+      return res.status(400).json({ message: "Email is required" });
+
     const trainer = await Trainer.findOne({ email: req.body.email });
     if (!trainer)
-       return res.status(404).json({ message: "Trainer not found" });
+      return res.status(404).json({ message: "Trainer not found" });
 
     const resetToken = jwt.sign(
       { id: trainer._id },
@@ -69,41 +52,40 @@ exports.forgetPassword = async (req, res) => {
       { expiresIn: "10m" }
     );
 
-    const resetLink = `${process.env.FRONTEND_URL}/reset/trainer/${resetToken}`;
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: trainer.email,
-      subject: "Reset Password",
-      text: resetLink,
+    // Return token in response instead of sending email
+    res.json({ 
+      message: "Reset token generated",
+      resetToken
     });
-
-    res.json({ message: "Reset link sent" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
-/*  RESET PASSWORD */
+/* RESET PASSWORD */
 exports.resetPassword = async (req, res) => {
   try {
-    const decoded = jwt.verify(req.params.token, JWT_SECRET);
-    const trainer = await Trainer.findById(decoded.id);
+    const { password } = req.body;
+    const { token } = req.params;
 
+    if (!password) return res.status(400).json({ message: "Password is required" });
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const trainer = await Trainer.findById(decoded.id);
     if (!trainer) return res.status(404).json({ message: "Trainer not found" });
 
-    trainer.password = req.body.password;
+    trainer.password = password;
     await trainer.save();
 
     res.json({ message: "Password updated successfully" });
   } catch (error) {
     console.error(error);
-    res.status(400).json({ message: "Invalid token" });
+    res.status(400).json({ message: "Invalid or expired token" });
   }
 };
-
-/* DASHBOARD  */
+/* DASHBOARD */
 exports.trainerHome = (req, res) => {
   res.json({ message: "Trainer Dashboard" });
 };
