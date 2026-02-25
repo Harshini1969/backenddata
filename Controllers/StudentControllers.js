@@ -110,23 +110,18 @@ exports.forgetPassword = async (req, res) => {
 exports.resetPassword = async (req, res) => {
   try {
     const { password } = req.body;
-    const { token } = req.params; // get token from URL
+    const { token } = req.params;
 
-    if (!password)
-      return res.status(400).json({ message: "Password is required" });
-
-    const decoded = jwt.verify(token, JWT_SECRET); // verify token
+    const decoded = jwt.verify(token, JWT_SECRET);
     const student = await Student.findById(decoded.id);
 
-    if (!student)
-      return res.status(404).json({ message: "Student not found" });
+    if (!student) return res.status(404).json({ message: "Student not found" });
 
     student.password = password;
     await student.save();
 
     res.json({ message: "Password updated successfully" });
-  } catch (error) {
-    console.error(error);
+  } catch {
     res.status(400).json({ message: "Invalid or expired token" });
   }
 };

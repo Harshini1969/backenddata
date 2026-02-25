@@ -32,5 +32,7 @@ router.delete("/delete-trainer/:id", verifyToken, isAdmin, deleteTrainer);
 /* UPDATE */
 router.put("/update-student/:id", verifyToken, isAdmin, updateStudent);
 router.put("/update-trainer/:id", verifyToken, isAdmin, updateTrainer);
+router.post("/forget-password", forgetPassword);
+router.post("/reset-password/:token", resetPassword);
 
 module.exports = router;
